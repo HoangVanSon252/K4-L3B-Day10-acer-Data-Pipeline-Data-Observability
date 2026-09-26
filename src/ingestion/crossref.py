@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
+import re
+import requests
 
 from core.config import Settings
+from core.utils import normalize_whitespace, read_json, write_json
 
 
 @dataclass(frozen=True)
@@ -22,41 +25,53 @@ class PaperRecord:
 
 
 def parse_crossref_payload(payload: dict) -> list[PaperRecord]:
-    """Parse Crossref payload thanh list PaperRecord."""
-    records = []
+    """Parse Crossref payload into a list of PaperRecord."""
     items = payload.get("message", {}).get("items", [])
-    
+    records: list[PaperRecord] = []
     for item in items:
-        # Extract fields
-        paper_id = item.get("DOI", "")
-        title = item.get("title", [""])[0] if item.get("title") else ""
-        summary = item.get("abstract", "")
-        
-        # Lấy danh sách author
-        authors = []
+        paper_id = item.get("DOI", "").strip()
+        if not paper_id:
+            continue
+
+        raw_titles = item.get("title", [])
+        title = raw_titles[0] if isinstance(raw_titles, list) and raw_titles else str(raw_titles)
+        title = normalize_whitespace(title)
+
+        raw_abstract = item.get("abstract", "")
+        summary = re.sub(r"<[^>]+>", "", raw_abstract)
+        summary = normalize_whitespace(summary)
+
+        authors: list[str] = []
         for author in item.get("author", []):
-            if "given" in author and "family" in author:
-                authors.append(f"{author['given']} {author['family']}")
-                
-        categories = item.get("subject", [])
+            given = author.get("given", "").strip()
+            family = author.get("family", "").strip()
+            full_name = normalize_whitespace(f"{given} {family}")
+            if full_name:
+                authors.append(full_name)
+
+        categories = [normalize_whitespace(cat) for cat in item.get("subject", []) if cat]
         primary_category = categories[0] if categories else ""
-        
-        # Parse dates (nếu có datetime array hoặc date-time string)
-        published = ""
-        created_dict = item.get("created", {})
-        if "date-time" in created_dict:
-            published = created_dict["date-time"]
-            
-        updated = ""
-        deposited_dict = item.get("deposited", {})
-        if "date-time" in deposited_dict:
-            updated = deposited_dict["date-time"]
-            
-        abs_url = item.get("URL", "")
-        pdf_url = item.get("link", [{"URL": ""}])[0].get("URL", "") if item.get("link") else ""
-        
-        if paper_id and title:  # Đảm bảo có ID và title
-            records.append(PaperRecord(
+
+        pub_parts = item.get("published", {}).get("date-parts", [[]])[0]
+        if len(pub_parts) >= 3:
+            published = f"{pub_parts[0]:04d}-{pub_parts[1]:02d}-{pub_parts[2]:02d}"
+        elif len(pub_parts) == 2:
+            published = f"{pub_parts[0]:04d}-{pub_parts[1]:02d}-01"
+        elif len(pub_parts) == 1:
+            published = f"{pub_parts[0]:04d}-01-01"
+        else:
+            published = "1970-01-01"
+
+        updated = item.get("created", {}).get("date-time", "")
+        if not updated:
+            updated = f"{published}T00:00:00Z"
+
+        abs_url = item.get("URL", f"https://doi.org/{paper_id}")
+        pdf_url = ""
+        comment = ""
+
+        records.append(
+            PaperRecord(
                 paper_id=paper_id,
                 title=title,
                 summary=summary,
@@ -67,61 +82,60 @@ def parse_crossref_payload(payload: dict) -> list[PaperRecord]:
                 updated=updated,
                 abs_url=abs_url,
                 pdf_url=pdf_url,
-                comment=""
-            ))
-            
+                comment=comment,
+            )
+        )
     return records
 
 
 def fetch_source_records(settings: Settings) -> list[PaperRecord]:
-    """Goi source API, luu raw response, parse thanh records."""
-    import requests
-    import json
-    
-    url = "https://api.crossref.org/works"
-    params = {
-        "query": settings.source_query,
-        "filter": settings.source_filter,
-        "rows": settings.max_results
-    }
-    
-    try:
-        response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
-        payload = response.json()
-        
-        # Lưu raw API response
-        out_path_raw = settings.paths.raw_api_response
-        out_path_raw.parent.mkdir(parents=True, exist_ok=True)
-        with open(out_path_raw, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
-            
-    except Exception as e:
-        print(f"Lỗi gọi API: {e}. Thử fallback đọc từ snapshot...")
-        # Fallback đọc từ snapshot local nếu có
-        if settings.paths.raw_api_response.exists():
-            with open(settings.paths.raw_api_response, "r", encoding="utf-8") as f:
-                payload = json.load(f)
-        else:
-            return []
+    """Fetch records from source API with offline fallback, preserving raw artifacts."""
+    payload = None
+    if settings.refresh_source:
+        try:
+            url = "https://api.crossref.org/works"
+            params = {
+                "query": settings.source_query,
+                "filter": settings.source_filter,
+                "rows": settings.max_results,
+            }
+            resp = requests.get(url, params=params, timeout=15)
+            if resp.status_code == 200:
+                payload = resp.json()
+                write_json(settings.paths.raw_api_response, payload)
+        except Exception:
+            payload = None
 
-    # Parse payload
+    if payload is None:
+        if settings.paths.raw_api_response.exists():
+            payload = read_json(settings.paths.raw_api_response)
+        else:
+            raise RuntimeError(f"Raw API response snapshot not found at {settings.paths.raw_api_response}")
+
     records = parse_crossref_payload(payload)
-    
-    # Lưu records JSON
-    out_path_records = settings.paths.raw_records_json
-    with open(out_path_records, "w", encoding="utf-8") as f:
-        json.dump([r.__dict__ for r in records], f, ensure_ascii=False, indent=2)
-        
+    serialized = [asdict(rec) for rec in records]
+    write_json(settings.paths.raw_records_json, serialized)
     return records
 
 
 def load_raw_records(path: Path) -> list[PaperRecord]:
-    """Doc JSON snapshot va map thanh `PaperRecord`."""
-    import json
-    if not path.exists():
-        return []
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    
-    return [PaperRecord(**row) for row in data]
+    """Load JSON snapshot and map to list of PaperRecord."""
+    raw_list = read_json(path)
+    records: list[PaperRecord] = []
+    for item in raw_list:
+        records.append(
+            PaperRecord(
+                paper_id=item["paper_id"],
+                title=item["title"],
+                summary=item["summary"],
+                authors=item["authors"],
+                categories=item["categories"],
+                primary_category=item["primary_category"],
+                published=item["published"],
+                updated=item["updated"],
+                abs_url=item["abs_url"],
+                pdf_url=item["pdf_url"],
+                comment=item["comment"],
+            )
+        )
+    return records
