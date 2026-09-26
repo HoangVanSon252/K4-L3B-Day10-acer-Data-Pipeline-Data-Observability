@@ -120,12 +120,16 @@ class LocalEmbeddingIndex:
         )
 
         manifest_path = embeddings_output_path or settings.paths.embeddings_json
+        try:
+            manifest_persist_path = persist_path.resolve().relative_to(settings.paths.project_dir.resolve()).as_posix()
+        except ValueError:
+            manifest_persist_path = str(persist_path.resolve())
         write_json(
             manifest_path,
             {
                 "backend": "chroma",
                 "embedding_model": settings.embedding_model,
-                "persist_path": str(persist_path),
+                "persist_path": manifest_persist_path,
                 "collection_name": collection_name,
                 "documents": documents,
             },
@@ -140,11 +144,16 @@ class LocalEmbeddingIndex:
     @classmethod
     def load(cls, settings: Settings, embeddings_path: Path | None = None) -> "LocalEmbeddingIndex":
         payload = read_json(embeddings_path or settings.paths.embeddings_json)
+        manifest_path = Path(payload.get("persist_path", "data/chroma"))
+        if manifest_path.is_absolute():
+            persist_path = manifest_path if manifest_path.exists() else settings.paths.chroma_dir
+        else:
+            persist_path = settings.paths.project_dir / manifest_path
         return cls(
             settings=settings,
             collection_name=payload["collection_name"],
             documents=payload["documents"],
-            persist_path=Path(payload["persist_path"]),
+            persist_path=persist_path,
         )
 
     def search(self, query: str, top_k: int | None = None) -> list[SearchResult]:

@@ -9,7 +9,7 @@
 | Khóa/Lớp          | K4-L3B                                                                                 |
 | Tên nhóm          | acer                                                                                   |
 | Vai trò chính     | Observability & Evaluation                                                             |
-| Repository        | K4-L3B-DAY10-acer-DataPipeline                                                         |
+| Repository        | K4-L3B-Day10-acer-Data-Pipeline-Data-Observability                                     |
 | Ngày hoàn thành   | 2026-09-26                                                                             |
 
 ## 2. Vai trò và phạm vi công việc
@@ -105,11 +105,11 @@ python -c "import pandas as pd; from datetime import timezone; from core.config 
   NotImplementedError: Student task: implement corruption flow.
   ```
 - **Lệnh hoặc bước tái hiện:** Chạy lệnh kiểm thử gọi tệp `papers_clean.csv` khi các bước upstream (Bước 2, Bước 3, Bước 6) chưa chạy toàn tuyến trên máy cục bộ, hoặc chạy khi tệp mã nguồn chưa được lưu hoàn tất trên IDE.
-- **Nguyên nhân gốc:** Thư mục `data/` bị loại trừ bởi `.gitignore` nên các tệp dữ liệu sạch không đồng bộ từ repository của các thành viên khác về máy cá nhân. Đồng thời, tệp `corruption.py` trên ổ cứng vẫn giữ nguyên code mẫu `raise NotImplementedError` do chưa hoàn thành lưu mã nguồn mới.
+- **Nguyên nhân gốc:** Tại thời điểm phát triển độc lập, artifact upstream chưa có trên nhánh làm việc và `corruption.py` vẫn là scaffold chưa được tích hợp. Sau khi các nhánh được hợp nhất, raw/clean artifacts và implementation hoàn chỉnh đã được đưa vào `main`.
 - **Cách xử lý:** 
   1. Cập nhật và lưu dứt điểm code hoàn thiện vào `src/ingestion/corruption.py`.
   2. Xây dựng câu lệnh kiểm thử độc lập (Isolated Unit Test) bằng cách giả lập DataFrame có schema chuẩn của Bước 3 để kiểm tra logic thuật toán của Bước 5 và Bước 7 mà không bị phụ thuộc vào tệp dữ liệu trung gian trên đĩa.
-- **Cách xác minh sau khi sửa:** Chạy script kiểm thử độc lập trên PowerShell thành công 100%, sau đó kiểm tra tệp `corruption_log.json` sinh ra đầy đủ 6 bản ghi lỗi.
+- **Cách xác minh sau khi sửa:** Kiểm tra `data/results/corruption_log.json` có đủ 6 loại lỗi (9 sự kiện), corrupted dataset còn 21 dòng và Quality Gate chuyển sang `FAILED`.
 - **Điều học được:** Khi phát triển pipeline phân tán theo nhóm, cần thiết kế các module có tính tách rời (decoupled) cao và luôn chuẩn bị mock data/isolated unit tests để kiểm chứng logic nội tại trước khi ghép nối toàn tuyến.
 
 ## 7. Hiểu biết về luồng end-to-end
@@ -128,7 +128,13 @@ python -c "import pandas as pd; from datetime import timezone; from core.config 
 
 ## 8. Phân tích kết quả
 
-*(Hiện tại Pipeline toàn tuyến Phase 1 và Phase 2 đang được Trưởng nhóm Hoàng Văn Sơn và nhóm tích hợp chạy đo lường; các chỉ số định lượng chi tiết sẽ được cập nhật đồng bộ sau khi script toàn tuyến hoàn tất.)*
+Kết quả đã được tích hợp và lưu trong artifacts dùng chung:
+
+- Baseline: Hit Rate `1.00`, Mean Token F1 `0.50`, Quality Gate `PASSED`.
+- Corrupted: Hit Rate `0.50`, Mean Token F1 `0.18`, Quality Gate `FAILED`.
+- Repaired: Hit Rate `1.00`, Mean Token F1 `0.50`, Quality Gate `PASSED`.
+
+Kết quả cho thấy test set và corruption suite đã tạo được phép đối chứng rõ ràng: dữ liệu bẩn làm giảm retrieval/answer quality, còn repair từ raw snapshot đưa các chỉ số trở về baseline.
 
 ## 9. Điều học được và hướng cải thiện
 

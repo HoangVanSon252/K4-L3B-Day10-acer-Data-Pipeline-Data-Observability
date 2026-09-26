@@ -1,58 +1,43 @@
 # Danh Sách Thành Viên & Báo Cáo Phân Công Nhóm
 
-- **Tên Nhóm:** `acer`
-- **Mã Nhóm / Lớp:** `K4-L3B-DAY10`
-- **Tên Repository Nộp Bài:** `K4-L3B-Day10-acer-Data-Pipeline-Data-Observability`
+- **Tên nhóm:** `acer`
+- **Mã nhóm / Lớp:** `K4-L3B-DAY10`
+- **Repository:** `K4-L3B-Day10-acer-Data-Pipeline-Data-Observability`
 
----
+## Thành viên
 
-## # Thành viên
-
-| STT | Họ và tên | MSSV | Email | Vai trò & Phân công công việc | Báo cáo cá nhân |
+| STT | Họ và tên | MSSV | Email | Vai trò & phạm vi chính | Báo cáo cá nhân |
 |---:|---|---|---|---|---|
-| 1 | Hoàng Văn Sơn | 2A202602375 | 26ai.sonhv@vinuni.edu.vn | Trưởng nhóm / Pipeline Integrator (`core/`, `phase1.py`, `corruption_flow.py`) | `report/2A202602375_HoangVanSon.md` |
-| 2 | Hoàng Văn Sơn | 2A202602375 | 26ai.sonhv@vinuni.edu.vn | Data Foundation & Recovery (`crossref.py`, `cleaning.py`, raw data) | `report/2A202602375_HoangVanSon.md` |
-| 3 |  |  |  | RAG & Vector Index (`retrieval/index.py`, `embeddings.py`, ChromaDB) | `report/2A202602375_HoangVanSon.md` |
-| 4 |  |  |  | Observability & Evaluation (`quality.py` GX 1.x, `testset.py`, reporting) | `report/2A202602375_HoangVanSon.md` |
+| 1 | Hoàng Văn Sơn | 2A202602375 | 26ai.sonhv@vinuni.edu.vn | Trưởng nhóm; ingestion, cleaning, orchestration và recovery | `report/2A202602375_HoangVanSon.md` |
+| 2 | Nguyễn Hữu Chương | 2A202602601 | huuchuonghtra@gmail.com | RAG, embedding, ChromaDB, observability và tích hợp pipeline | `report/2A202602601_NguyenHuuChuong.md` |
+| 3 | Phạm Quốc Đạt | 2A202602384 | datkcr007@gmail.com | Benchmark evaluation và synthetic data corruption | `report/2A202602384_PhamQuocDat.md` |
 
-*(Nếu nhóm có 3 hoặc 5-6 thành viên, xem bảng phân công chi tiết theo vai trò trong file `CHECKPOINTS.md`)*.
+## Phân công và bằng chứng
 
----
+### Hoàng Văn Sơn — Data Foundation & Pipeline Integration
 
-## # Cá nhân
+- Hoàn thiện ingestion Crossref và offline fallback trong `src/ingestion/crossref.py`.
+- Chuẩn hóa dữ liệu, tính `age_days` và tạo `text_for_embedding` trong `src/ingestion/cleaning.py`.
+- Điều phối `src/pipelines/phase1.py` và `src/pipelines/corruption_flow.py`.
+- Bằng chứng: raw/clean artifacts, baseline pipeline và repaired dataset.
 
-### Hoàng Văn Sơn (2A202602375) - Trưởng nhóm & Điều phối Pipeline
-- **Vai trò:** Trưởng nhóm & Điều phối Pipeline.
-- **Công việc chi tiết đã hoàn thành:**
-  - Thiết lập cấu hình hệ thống `core/config.py` và đường dẫn artifacts `core/utils.py`.
-  - Kết nối luồng thực thi trong `src/pipelines/phase1.py` và `src/pipelines/corruption_flow.py`.
-  - Kiểm tra tính nhất quán của các artifacts và theo dõi Contributor tracking trên GitHub nhánh `main`.
-- **Điều học được / Đóng góp chính:**
-  - Hiểu sâu sắc về thiết kế Idempotent Pipeline và quản lý trạng thái luồng dữ liệu đa tầng.
+### Nguyễn Hữu Chương — RAG, Vector Store & Observability
 
-### Hoàng Văn Sơn (2A202602375) - Data Foundation & Recovery
-- **Vai trò:** Phụ trách Ingestion, Làm sạch & Phục hồi dữ liệu.
-- **Công việc chi tiết đã hoàn thành:**
-  - Xây dựng module thu thập Crossref API với cơ chế Fallback offline trong `src/ingestion/crossref.py`.
-  - Chuẩn hóa schema, tính toán trường `age_days` và `text_for_embedding` trong `src/ingestion/cleaning.py`.
-  - Thực thi cơ chế Idempotent Repair phục hồi dữ liệu từ raw snapshot.
-- **Điều học được / Đóng góp chính:**
-  - Kỹ thuật truy vết nguồn gốc dữ liệu (Data Lineage) và bảo toàn raw snapshot trước khi biến đổi.
+- Xây dựng embedding/index với `all-MiniLM-L6-v2` và ba collection ChromaDB.
+- Hoàn thiện GX 1.x Quality Gate, Freshness SLA và báo cáo pipeline.
+- Hỗ trợ tích hợp, chạy và đối chiếu ba trạng thái baseline/corrupted/repaired.
+- Bằng chứng: `data/embeddings/`, `data/chroma/`, `data/quality/` và `data/reports/`.
 
-### ## HoVaTen3-MSSV3
-- **Vai trò:** Phụ trách RAG, Vector Database & Embedding.
-- **Công việc chi tiết đã hoàn thành:**
-  - Quản lý mô hình embedding `sentence-transformers/all-MiniLM-L6-v2`.
-  - Nạp và quản lý 3 collection riêng biệt trong ChromaDB (`papers-baseline`, `papers-corrupted`, `papers-repaired`).
-  - Xây dựng QA Agent truy vấn ngữ cảnh chính xác theo tài liệu.
-- **Điều học được / Đóng góp chính:**
-  - Cách cô lập các không gian vector để so sánh khách quan giữa dữ liệu sạch và dữ liệu bị lỗi.
+### Phạm Quốc Đạt — Evaluation & Corruption
 
-### ## HoVaTen4-MSSV4
-- **Vai trò:** Phụ trách Data Observability & Benchmark Evaluation.
-- **Công việc chi tiết đã hoàn thành:**
-  - Thiết lập Quality Gate theo chuẩn mới **Great Expectations 1.x** và giám sát Freshness SLA trong `src/observability/quality.py`.
-  - Xây dựng bộ câu hỏi đánh giá chuẩn trong `src/evaluation/testset.py`.
-  - Đo lường và xuất bảng đối chiếu 3 trạng thái vào `data/reports/corruption_report.md`.
-- **Điều học được / Đóng góp chính:**
-  - Cách thiết lập hệ thống cảnh báo sớm chặn đứng hiện tượng Silent Failure trước khi dữ liệu vào serving layer.
+- Xây dựng test set 10 câu hỏi thuộc bốn nhóm `summary`, `authors`, `date`, `categories`.
+- Triển khai sáu kịch bản corruption và tái tạo `text_for_embedding` sau biến đổi.
+- Bằng chứng: `data/eval/test_set.json`, `data/results/corruption_log.json` và corrupted metrics.
+
+## Contract tích hợp chung
+
+- Raw source of truth: `data/raw/crossref_records.json`.
+- Document identity: DOI trong trường `paper_id`.
+- Cùng một test set được dùng cho baseline, corrupted và repaired.
+- Repair luôn tái tạo clean dataframe từ raw snapshot, không vá trực tiếp dữ liệu corrupted.
+- Các số liệu báo cáo phải khớp với artifacts trong `data/results/` và `data/quality/`.
